@@ -1,0 +1,172 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Avanging \"East Wind Storm Night Shining Spear\""]
+#Text["Code by whitegrimm [r] Avanging \"East Wind Storm Night Shining Spear\""]
+#Background["script/default_system/Default_Background_IceMountain.txt"]
+
+let ZUNbullet = GetCurrentScriptDirectory() ~ "./AllStarShot/AllStarShot.dnh";
+let objBoss;
+let objScene = GetEnemyBossSceneObjectID();
+let count = -120;
+
+@Event{
+	alternative(GetEventType())
+	case(EV_REQUEST_LIFE){
+		SetScriptResult(3000);
+	}
+	case(EV_REQUEST_TIMER){
+		SetScriptResult(60);
+	}
+	case(EV_REQUEST_SPELL_SCORE){
+		SetScriptResult(1000000);
+	}
+}
+
+@Initialize{
+	LoadTexture(ZUNbullet);
+	LoadEnemyShotData(ZUNbullet);
+	objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+	ObjEnemy_Regist(objBoss);
+	ObjMove_SetDestAtFrame(objBoss, GetCenterX(), GetCenterY() - 60, 60);
+	ObjEnemyBossScene_StartSpell(objScene);
+	
+	TDrawLoop;
+	TFinalize;
+}
+
+@MainLoop{
+	ObjEnemy_SetIntersectionCircleToShot(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 32);
+	ObjEnemy_SetIntersectionCircleToPlayer(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 24);
+	
+	if(count > 0 && count % 360 == 90){ObjMove_SetDestAtFrame(objBoss, GetCenterX() - 120, GetCenterY() - 150, 60);}
+	if(count > 0 && count % 180 == 0){ObjMove_SetDestAtFrame(objBoss, GetCenterX(), GetCenterY() - 60, 60);}
+	if(count > 0 && count % 360 == 270){ObjMove_SetDestAtFrame(objBoss, GetCenterX() + 120, GetCenterY() - 150, 60);}
+	
+	if(count >= 0 && count % 360 == 150){fireSpear;}
+	if(count >= 0 && count % 360 == 330){fireSpear;}
+	if(count == 0){fireRing;}
+	
+	count++;
+	yield;
+}
+
+task fireRing {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+	let angleT = GetAngleToPlayer(objBoss);
+	loop{
+		loop(20){
+			if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+			let obj = CreateShotA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 2, angleT, 227, 30);
+			angleT += 360/20;
+		}
+		wait(60);
+	}
+}
+
+task fireSpear {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+	wait(5);
+	let angleT = GetAngleToPlayer(objBoss);
+	loop(3){
+		CreateDelayLaser(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), angleT, 512, 32, 0, 1016, 8);
+		wait(10);
+	}
+	let obj = CreateShotA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 8, angleT, 7, 0);
+	spread(obj);
+	ObjRender_SetScaleXYZ(obj, 1.5, 1.5, 1.5);
+	trailA(obj, angleT);
+	trailB(obj, angleT, 153, 1);
+	trailB(obj, angleT, 57, -1);
+}
+
+task trailA(obj, ang) {
+	loop(10){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		if(Obj_IsDeleted(obj)){break;}
+		CreateShotA2(ObjMove_GetX(obj), ObjMove_GetY(obj), 1, ang, -0.01, 0.5, 227, 30);
+		wait(5);
+	}
+}
+
+task trailB(obj, ang, graph, dir) {
+	loop(60){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		if(Obj_IsDeleted(obj)){break;}
+		let objcount = 0;
+		CreateShotA2(ObjMove_GetX(obj), ObjMove_GetY(obj), 0.01, ang, 0.5, 1.25, graph, 30);
+		ang += (sin(objcount)*54 + cos(objcount)*54)*dir;
+		objcount ++;
+		yield;
+	}
+}
+
+task spread(obj) {
+	while(ObjMove_GetX(obj) > 0 && ObjMove_GetX(obj) < GetStgFrameWidth && ObjMove_GetY(obj) > 0 && ObjMove_GetY(obj) < GetStgFrameHeight){yield;}
+	wait(5);
+	if(ObjMove_GetX(obj) <= 0){
+		ObjMove_SetX(obj, 0);
+		ring(obj);
+	}else if(ObjMove_GetX(obj) >= GetStgFrameWidth){
+		ObjMove_SetX(obj, GetStgFrameWidth);
+		ring(obj);
+	}else if(ObjMove_GetY(obj) <= 0){
+		ObjMove_SetY(obj, 0);
+		ring(obj);
+	}else if(ObjMove_GetY(obj) >= GetStgFrameHeight){
+		ObjMove_SetY(obj, GetStgFrameHeight);
+		ring(obj);
+	}
+}
+
+task ring(obj) {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+	let angleU = rand(0, 360);
+	loop(20){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		CreateShotOA1(obj, 1.25, angleU, 227, 30);
+		angleU += 360/20;
+	}
+}
+
+task CreateDelayLaser(x, y, ang, l, w, dt, graph, delay) {
+	let objlaser = CreateStraightLaserA1(x, y, ang, l, w, dt, graph, delay);
+	ObjStLaser_SetSource(objlaser, false);
+	loop(delay-1){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){
+			Obj_Delete(objlaser);
+			return;
+		}
+		yield;
+	}
+	Obj_Delete(objlaser);
+}
+
+task TDrawLoop {
+	let imgExRumia = GetCurrentScriptDirectory() ~ "ExRumia.png";
+	ObjPrim_SetTexture(objBoss, imgExRumia);
+	ObjSprite2D_SetSourceRect(objBoss, 64, 1, 127, 64);
+	ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task TFinalize {
+	while(ObjEnemy_GetInfo(objBoss, INFO_LIFE) > 0){yield;}
+	if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT) + ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+		AddScore(ObjEnemyBossScene_GetInfo(objScene, INFO_SPELL_SCORE));
+	}
+	Obj_Delete(objBoss);
+	DeleteShotAll(TYPE_ALL, TYPE_ITEM);
+	SetAutoDeleteObject(true);
+	CloseScript(GetOwnScriptID());
+	return;
+}
+
+function GetCenterX(){
+		return GetStgFrameWidth() / 2;
+}
+function GetCenterY(){
+		return GetStgFrameHeight() / 2;
+}
+
+function wait(n){
+	loop(n){yield;}
+}

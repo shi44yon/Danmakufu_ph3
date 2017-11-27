@@ -1,0 +1,142 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Recollection \"Emperor of the East\""]
+#Text["Code by whitegrimm [r] Recollection \"Emperor of the East\""]
+#Background["script/default_system/Default_Background_IceMountain.txt"]
+
+let ZUNbullet = GetCurrentScriptDirectory() ~ "./AllStarShot/AllStarShot.dnh";
+let objBoss;
+let objScene = GetEnemyBossSceneObjectID();
+let count = -120;
+
+@Event{
+	alternative(GetEventType())
+	case(EV_REQUEST_LIFE){
+		SetScriptResult(3000);
+	}
+	case(EV_REQUEST_TIMER){
+		SetScriptResult(60);
+	}
+	case(EV_REQUEST_SPELL_SCORE){
+		SetScriptResult(1000000);
+	}
+}
+
+@Initialize{
+	LoadTexture(ZUNbullet);
+	LoadEnemyShotData(ZUNbullet);
+	objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+	ObjEnemy_Regist(objBoss);
+	ObjMove_SetDestAtFrame(objBoss, GetCenterX(), GetCenterY() - 75, 60);
+	ObjEnemyBossScene_StartSpell(objScene);
+	
+	TDrawLoop;
+	TFinalize;
+}
+
+@MainLoop{
+	ObjEnemy_SetIntersectionCircleToShot(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 32);
+	ObjEnemy_SetIntersectionCircleToPlayer(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 24);
+	
+	/*if(count > 0 && count % 180 == 0){
+		ObjMove_SetDestAtFrame(objBoss, rand(GetCenterX() + 90, GetCenterX() - 90), rand(GetCenterY() - 60, GetCenterY() - 120), 60);
+	}
+	*/
+	if(count >= 0 && count % 360 == 0){fireRay;}
+	if(count == 120){
+		fireTri(1);
+		fireTri(-1);
+		fireDia(1);
+		fireDia(-1);
+	}
+	
+	count++;
+	yield;
+}
+
+task fireRay {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	wait(5);
+	let angleT = ceil(rand(-30, 30));
+	loop(60){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+		let obj = CreateStraightLaserA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), angleT+3.25, 512, 8, 30, 1034, 90);
+		angleT += 360/60;
+		wait(1);
+	}
+	wait(1);
+	loop(60){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+		let obj = CreateStraightLaserA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), angleT-180, 512, 8, 30, 1033,90);
+		angleT -= 360/60;
+		wait(1);
+	}
+}
+
+task fireTri(dir) {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	wait(15);
+	let angleT = 90;
+	let angleU = 270;
+	loop{
+		ascent(i in 0..3){
+			if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+			let obj = CreateShotA1(ObjMove_GetX(objBoss)+27*cos(angleU)+90*dir, ObjMove_GetY(objBoss)+27*sin(angleU), 1.75, angleT, 227, 0);
+			angleU += 360/3*dir;
+			angleT += 360/3*dir;
+		}
+		angleT -= 360/75*dir;
+		angleU -= 360/75*dir;
+		wait(15);
+		yield;
+	}
+}
+
+task fireDia(dir) {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	wait(15);
+	let angleT = 135*dir;
+	let angleU = 315*dir;
+	loop{
+		ascent(i in 0..2){
+			if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+			let obj = CreateShotA1(ObjMove_GetX(objBoss)+27*cos(angleU), ObjMove_GetY(objBoss)+27*sin(angleU)+90, 1.75, angleT, 227, 0);
+			angleU += 360/2*dir;
+			angleT += 360/2*dir;
+		}
+		angleT -= 360/75*dir;
+		angleU -= 360/75*dir;
+		wait(15);
+		yield;
+	}
+}
+
+task TDrawLoop {
+	let imgExRumia = GetCurrentScriptDirectory() ~ "ExRumia.png";
+	ObjPrim_SetTexture(objBoss, imgExRumia);
+	ObjSprite2D_SetSourceRect(objBoss, 64, 1, 127, 64);
+	ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task TFinalize {
+	while(ObjEnemy_GetInfo(objBoss, INFO_LIFE) > 0){yield;}
+	if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT) + ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+		AddScore(ObjEnemyBossScene_GetInfo(objScene, INFO_SPELL_SCORE));
+	}
+	Obj_Delete(objBoss);
+	DeleteShotAll(TYPE_ALL, TYPE_ITEM);
+	SetAutoDeleteObject(true);
+	CloseScript(GetOwnScriptID());
+	return;
+}
+
+function GetCenterX(){
+		return GetStgFrameWidth() / 2;
+}
+function GetCenterY(){
+		return GetStgFrameHeight() / 2;
+}
+
+function wait(n){
+	loop(n){yield;}
+}

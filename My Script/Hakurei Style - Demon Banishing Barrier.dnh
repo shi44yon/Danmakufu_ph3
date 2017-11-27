@@ -1,0 +1,116 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Hakurei Style \"Demon Banishing Barrier\""]
+#Text["Code by whitegrimm [r] Hakurei Style \"Demon Banishing Barrier\""]
+#Background["script/default_system/Default_Background_IceMountain.txt"]
+
+let ZUNbullet = GetCurrentScriptDirectory() ~ "./AllStarShot/AllStarShot.dnh";
+let objBoss;
+let objScene = GetEnemyBossSceneObjectID();
+let count = -120;
+
+@Event{
+	alternative(GetEventType())
+	case(EV_REQUEST_LIFE){
+		SetScriptResult(3000);
+	}
+	case(EV_REQUEST_TIMER){
+		SetScriptResult(60);
+	}
+	case(EV_REQUEST_SPELL_SCORE){
+		SetScriptResult(1000000);
+	}
+}
+
+@Initialize{
+	LoadTexture(ZUNbullet);
+	LoadEnemyShotData(ZUNbullet);
+	objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+	ObjEnemy_Regist(objBoss);
+	ObjMove_SetDestAtFrame(objBoss, GetCenterX(), GetCenterY() - 90, 60);
+	ObjEnemyBossScene_StartSpell(objScene);
+	
+	TDrawLoop;
+	TFinalize;
+}
+
+@MainLoop{
+	ObjEnemy_SetIntersectionCircleToShot(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 32);
+	ObjEnemy_SetIntersectionCircleToPlayer(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 24);
+	
+	if(count % 50 == 0 && count >= 0){
+		fireInt(1, 1);
+		fireInt(-1, 1);
+		fireInt(1, -1);
+		fireInt(-1, -1);
+	}
+	if(count % 50 == 25 && count >= 0){
+		fireCar(1, 1);
+		fireCar(-1, 1);
+		fireCar(1, -1);
+		fireCar(-1, -1);
+	}
+	if(count % 5 == 0 && count >= 0){fireRan;}
+	count++;
+	yield;
+}
+
+task fireInt(dirx, diry) {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	ascent(i in -8..9){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		CreateShotB1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 2^(1/2)*(1+i/8)*dirx, 2^(1/2)*(1-i/8)*diry, 99, 15);
+	}
+}
+
+task fireCar(dirx, diry) {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	ascent(i in -8..9){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		CreateShotB1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 2*dirx, (0+i/4), 112, 15);
+	}
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	ascent(i in -8..9){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		CreateShotB1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), (0+i/4), 2*diry, 112, 15);
+	}
+}
+
+task fireRan {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+	let angleT = rand(0, 360);
+	ascent(i in 0..4) {
+		let obj = CreateShotA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 1, angleT, 103, 15);
+		ObjMove_AddPatternA2(obj, 45, 1, NO_CHANGE, 0.1, 0, 2-i/6);
+	}
+}
+
+task TDrawLoop {
+	let imgExRumia = GetCurrentScriptDirectory() ~ "ExRumia.png";
+	ObjPrim_SetTexture(objBoss, imgExRumia);
+	ObjSprite2D_SetSourceRect(objBoss, 64, 1, 127, 64);
+	ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task TFinalize {
+	while(ObjEnemy_GetInfo(objBoss, INFO_LIFE) > 0){yield;}
+	if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT) + ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+		AddScore(ObjEnemyBossScene_GetInfo(objScene, INFO_SPELL_SCORE));
+	}
+	Obj_Delete(objBoss);
+	DeleteShotAll(TYPE_ALL, TYPE_ITEM);
+	SetAutoDeleteObject(true);
+	CloseScript(GetOwnScriptID());
+	return;
+}
+
+function GetCenterX(){
+		return GetStgFrameWidth() / 2;
+}
+function GetCenterY(){
+		return GetStgFrameHeight() / 2;
+}
+
+function wait(n){
+	loop(n){yield;}
+}

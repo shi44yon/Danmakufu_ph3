@@ -1,0 +1,31 @@
+#TouhouDanmakufu[Plural]
+#ScriptVersion[3]
+#Title["My First Boss Script"]
+#Text["Code by whitegrimm [r] My First Boss Script"]
+#Background["script/default_system/Default_Background_IceMountain.txt"]
+
+@Event{
+
+}
+
+@Initialize{
+	TPlural;
+}
+
+@MainLoop{
+	yield;
+}
+
+task TPlural {
+	let dir = GetCurrentScriptDirectory();
+	let obj = ObjEnemyBossScene_Create();
+	ObjEnemyBossScene_Add(obj, 0, dir ~ "./Flower Non-Spell 01.dnh");
+	ObjEnemyBossScene_Add(obj, 0, dir ~ "./Flower Sign - Rose Bouquet.dnh");
+	ObjEnemyBossScene_Add(obj, 1, dir ~ "./Flower Non-Spell 02.dnh");
+	ObjEnemyBossScene_Add(obj, 1, dir ~ "./Flower Sign - Night Flower.dnh");
+	ObjEnemyBossScene_Add(obj, 2, dir ~ "./Flower Sign - Petal Labyrinth.dnh");
+	ObjEnemyBossScene_LoadInThread(obj);
+	ObjEnemyBossScene_Regist(obj);
+	while(!Obj_IsDeleted(obj)){yield;}
+	CloseScript(GetOwnScriptID());
+}

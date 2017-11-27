@@ -1,0 +1,125 @@
+#TouhouDanmakufu[Single]
+#ScriptVersion[3]
+#Title["Recollection \"Evil Sealing Circle\""]
+#Text["Code by whitegrimm [r] Recollection \"Evil Sealing Circle\""]
+#Background["script/default_system/Default_Background_IceMountain.txt"]
+
+let ZUNbullet = GetCurrentScriptDirectory() ~ "./AllStarShot/AllStarShot.dnh";
+let objBoss;
+let objScene = GetEnemyBossSceneObjectID();
+let count = -120;
+
+@Event{
+	alternative(GetEventType())
+	case(EV_REQUEST_LIFE){
+		SetScriptResult(3000);
+	}
+	case(EV_REQUEST_TIMER){
+		SetScriptResult(60);
+	}
+	case(EV_REQUEST_SPELL_SCORE){
+		SetScriptResult(1000000);
+	}
+}
+
+@Initialize{
+	LoadTexture(ZUNbullet);
+	LoadEnemyShotData(ZUNbullet);
+	objBoss = ObjEnemy_Create(OBJ_ENEMY_BOSS);
+	ObjEnemy_Regist(objBoss);
+	ObjMove_SetDestAtFrame(objBoss, GetCenterX(), GetCenterY() - 90, 60);
+	ObjEnemyBossScene_StartSpell(objScene);
+	
+	TDrawLoop;
+	TFinalize;
+}
+
+@MainLoop{
+	ObjEnemy_SetIntersectionCircleToShot(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 32);
+	ObjEnemy_SetIntersectionCircleToPlayer(objBoss, ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 24);
+	
+	if(count == 0){fireSeal;}
+	if(count % 195 == 0 && count > 0){fireWard;}
+	
+	count++;
+	yield;
+}
+
+task fireSeal {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	wait(15);
+	let angleT = rand(0, 360);
+	let objcount = 0;
+	loop{
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		loop(8){
+			let obj1 = CreateShotA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 4, angleT, 99, 0);
+			angleT += 360/8;
+			BulletCommand(obj1);
+		}
+		if(count >= 225){
+			angleT += sin(objcount) * cos(objcount) * 3.75;
+			objcount += 7;
+		}
+		wait(7);
+		yield;
+	}
+}
+
+task fireWard {
+	if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;} //Default kill to prevent (0, 0) spawning
+	wait(15);
+	let angleT = rand(0, 360);
+	ascent(i in 0..7){
+		wait(15);
+		ascent(j in 0..60){
+			if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+			let obj3 = CreateShotA1(ObjMove_GetX(objBoss), ObjMove_GetY(objBoss), 8, angleT, 224, 0);
+			angleT += 360/60;
+			ObjMove_AddPatternA1(obj3, 21-i, 0, NO_CHANGE);
+			ObjMove_AddPatternA3(obj3, 180-i*3-j, 0.01, NO_CHANGE, 0.05, 0, 3, 3);
+		}
+		angleT += 360/150;
+		yield;
+	}
+}
+
+task BulletCommand(obj1) {
+	wait(23);
+	ascent(i in -2..3){
+		if(ObjEnemy_GetInfo(objBoss, INFO_LIFE) <= 0){return;}//Default kill to prevent (0, 0) spawning
+		let obj2 = CreateShotOA1(obj1, 3.5, ObjMove_GetAngle(obj1)+i*20, 99, 0);
+		ObjMove_AddPatternA1(obj2, 23, NO_CHANGE, ObjMove_GetAngle(obj2)+i*20);
+	}
+	ObjShot_SetDeleteFrame(obj1, 0);
+}
+
+task TDrawLoop {
+	let imgExRumia = GetCurrentScriptDirectory() ~ "ExRumia.png";
+	ObjPrim_SetTexture(objBoss, imgExRumia);
+	ObjSprite2D_SetSourceRect(objBoss, 64, 1, 127, 64);
+	ObjSprite2D_SetDestCenter(objBoss);
+}
+
+task TFinalize {
+	while(ObjEnemy_GetInfo(objBoss, INFO_LIFE) > 0){yield;}
+	if(ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SHOOTDOWN_COUNT) + ObjEnemyBossScene_GetInfo(objScene, INFO_PLAYER_SPELL_COUNT) == 0){
+		AddScore(ObjEnemyBossScene_GetInfo(objScene, INFO_SPELL_SCORE));
+	}
+	Obj_Delete(objBoss);
+	DeleteShotAll(TYPE_ALL, TYPE_ITEM);
+	SetAutoDeleteObject(true);
+	CloseScript(GetOwnScriptID());
+	return;
+}
+
+function GetCenterX(){
+		return GetStgFrameWidth() / 2;
+}
+function GetCenterY(){
+		return GetStgFrameHeight() / 2;
+}
+
+function wait(n){
+	loop(n){yield;}
+}
